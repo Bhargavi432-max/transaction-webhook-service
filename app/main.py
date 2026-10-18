@@ -54,8 +54,10 @@ async def receive_transaction_webhook(payload: TransactionWebhook, request: Requ
     try:
         # Only a single indexed insert happens on the request path; the 30 s of
         # processing runs in the background worker.
+        # shield(): if the budget runs out we answer 503, but let the insert finish
+        # instead of cancelling it mid-query (which would kill a pooled connection).
         created = await asyncio.wait_for(
-            db.insert_transaction(request.app.state.pool, txn),
+            asyncio.shield(db.insert_transaction(request.app.state.pool, txn)),
             timeout=config.WEBHOOK_DB_TIMEOUT_SECONDS,
         )
     except Exception:

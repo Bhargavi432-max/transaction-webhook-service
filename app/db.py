@@ -28,8 +28,12 @@ async def create_pool() -> asyncpg.Pool:
         config.DATABASE_URL,
         min_size=config.DB_POOL_MIN,
         max_size=config.DB_POOL_MAX,
-        # Required behind PgBouncer/Supavisor in transaction mode (e.g. Supabase pooler).
-        statement_cache_size=0,
+        # Keep warm connections around: opening a new TLS connection to a remote DB
+        # costs several round trips and would blow the webhook latency budget.
+        max_inactive_connection_lifetime=0,
+        # Cached prepared statements make each query a single round trip. They are not
+        # supported by transaction-mode poolers (Supabase port 6543), so disable there.
+        statement_cache_size=0 if ":6543" in config.DATABASE_URL else 100,
         command_timeout=10,
     )
     async with pool.acquire() as conn:

@@ -30,5 +30,5 @@ MAX_ATTEMPTS = _int("MAX_ATTEMPTS", 5)
 # Hard budget for the webhook DB write so the endpoint always answers well under 500 ms.
 WEBHOOK_DB_TIMEOUT_SECONDS = _float("WEBHOOK_DB_TIMEOUT_SECONDS", 0.4)
 
-DB_POOL_MIN = _int("DB_POOL_MIN", 2)
+DB_POOL_MIN = _int("DB_POOL_MIN", 5)
 DB_POOL_MAX = _int("DB_POOL_MAX", 10)
