@@ -2,7 +2,9 @@
 
 A Python service that receives transaction webhooks from payment processors (e.g. Razorpay), acknowledges them immediately with `202 Accepted`, and processes them reliably in the background, exactly once per `transaction_id`.
 
-**Live API:** `https://<your-service>.onrender.com` _(see [Deployment](#deploy-render--supabase))_
+**Live API:** https://transaction-webhook-service-0zsd.onrender.com  (API docs: https://transaction-webhook-service-0zsd.onrender.com/docs)
+
+> Hosted on Render's free tier, so the first request after 15 minutes idle takes about 50 s while the instance wakes up. Call `GET /` once before testing.
 
 | Method | Path | Purpose |
 |---|---|---|
@@ -117,7 +119,7 @@ Configuration (environment variables):
 
 ```bash
 python3 scripts/smoke_test.py                                  # local
-python3 scripts/smoke_test.py https://<your-service>.onrender.com
+python3 scripts/smoke_test.py https://transaction-webhook-service-0zsd.onrender.com
 ```
 
 Output from a local run:
@@ -140,7 +142,7 @@ All checks passed.
 ### Manually with curl
 
 ```bash
-URL=http://localhost:8000
+URL=https://transaction-webhook-service-0zsd.onrender.com      # or http://localhost:8000
 
 curl $URL/
 
@@ -162,5 +164,7 @@ curl $URL/v1/transactions/txn_abc123def456     # status: PROCESSED, processed_at
 1. **Supabase:** create a project. Go to **Connect → Session pooler** and copy the connection string (the direct connection is IPv6-only, which Render can't reach).
 2. **Render:** **New → Blueprint**, pick this repo (it reads `render.yaml`), and set `DATABASE_URL` to the Supabase string. Choose the same region as the Supabase project to keep webhook latency low.
 3. Open `https://<service>.onrender.com/`. It should return `HEALTHY`.
+
+> **Current deployment and latency:** the API runs on Render (Singapore) and the database on Supabase (Seoul), the closest free regions I had available. Each DB round trip crosses regions (~150–300 ms), so webhooks take ~300–450 ms end to end. Under bursts of many simultaneous requests, some webhooks exceed the 400 ms write budget and get a `503` rather than an unpersisted `202`, and the processor's retry delivers them (idempotently). Putting the database in the same region as the API brings each query down to ~2 ms. Locally, with the DB co-located, p95 is ~20 ms under 100 concurrent webhooks.
 
 > **Free-tier cold starts:** Render's free instances sleep after 15 minutes without traffic and take about 50 s to wake. The first request after a sleep can't meet the 500 ms target, so hit `GET /` before testing. Once the service is awake, webhooks respond in tens of milliseconds. Transactions accepted before a sleep aren't lost: they're in Postgres and are resumed when the service wakes. In production this would run on an always-on instance.
